@@ -3766,23 +3766,28 @@ module IndFamilyCtx = struct
 end
 
 
-module Helpers = struct 
+module Helpers = struct
+  let transform_constructor
+      : 'a. constructors:Vernacexpr.constructor_list_or_record_decl_expr ->
+        f:(Vernacexpr.constructor_expr -> 'a) -> 'a list =
+    fun ~constructors ~f ->
+       match constructors with 
+       | Vernacexpr.Constructors cs -> List.map f cs
+       | _ -> cerror ~einfo:("Expect Inductive Constructor!"^__LOC__) ()
+  
   (** [extract_constructors ind] return all constructors in the given  
     inductive type with their respective types *)
- let extract_constructors 
-    : IndFamilyCtx.t -> (Names.Id.t * Constrexpr.constr_expr) list = 
-  fun inductive -> 
-    (* No mutual inductive type *)
-    let inductive = inductive |> IndFamilyCtx.ind |> List.hd in 
-    let (_, _, _, constructors) = inductive |> fst in 
-    match constructors with 
-    | Vernacexpr.Constructors constructors ->           
-       let each_constr ((_, (cname, cty)) : Vernacexpr.constructor_expr) : (name * rawterm) =
-         let cname = CAst.with_val (fun x -> x) cname in 
-         (cname , cty) 
-       in 
-       constructors |> List.map each_constr          
-    | _ -> cerror ~einfo:("Expect Inductive Constructor!"^__LOC__) ()
+  let extract_constructors 
+      : IndFamilyCtx.t -> (Names.Id.t * Constrexpr.constr_expr) list = 
+    fun inductive -> 
+      (* No mutual inductive type *)
+      let inductive = inductive |> IndFamilyCtx.ind |> List.hd in 
+      let (_, _, _, constructors) = inductive |> fst in
+      let each_constr ((_, (cname, cty)) : Vernacexpr.constructor_expr) : (name * rawterm) =
+        let cname = CAst.with_val (fun x -> x) cname in 
+        (cname , cty) 
+      in
+      transform_constructor ~constructors ~f:each_constr
 end 
 
 (* A module with utils for performing constructor extensions *)
@@ -3817,7 +3822,7 @@ let constructor_extension
     |> List.filter_map (fun (name, ty) -> 
        match parent_constructors |> List.assoc_opt name with 
        | Some parent_ty -> Some (name, ty, parent_ty)
-       | None -> None )
+       | None -> None)
   in
   let extended_constructors = 
     extended_constructors_types 
@@ -3828,22 +3833,20 @@ let constructor_extension
     |> IndFamilyCtx.ind
     |> List.hd (* No Mutual Inductive types *)
     |> fst (* Skip the notation list *)
+  in
+  let each_constr ((x, (cname, cty))) =
+      let name = 
+         let name = CAst.with_val (fun x -> x) cname in 
+         match List.find_opt (fun x -> x = name) extended_constructors with 
+         | Some _ -> Nameops.add_suffix name "'"
+         | None -> name           
+       in
+      (x, (CAst.make name, cty))
   in 
-  let cstrs = 
-    match cstrs with 
-    | Vernacexpr.Constructors constructors -> 
-       let each_constr ((x, (cname, cty))) =
-         let name = 
-           let name = CAst.with_val (fun x -> x) cname in 
-           match List.find_opt (fun x -> x = name) extended_constructors with 
-           | Some _ -> Nameops.add_suffix name "'"
-           | None -> name           
-         in
-        (x, (CAst.make name, cty))
-       in 
-       Vernacexpr.Constructors (List.map each_constr constructors)
-    | _ -> cerror ~einfo:("Expect Inductive Constructor!"^__LOC__) ()
-  in 
+  let cstrs =
+    Vernacexpr.Constructors
+      (Helpers.transform_constructor ~constructors:cstrs ~f:each_constr)
+  in  
   let child_ind = ((wtc, (type_name, univ_info)), params, ty, cstrs) in
   let child_ind_def = ([(child_ind, [])]) in 
   let child = (child_ind_def, IndFamilyCtx.ctx child) in
