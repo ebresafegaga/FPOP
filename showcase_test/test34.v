@@ -14,7 +14,7 @@ FEnd A.
 
 Family C extends A.
    FInductive t : Set := A : nat -> t | C : t.
-   Default A 0.
+   FDefault A 0.
 
    
 Family K.

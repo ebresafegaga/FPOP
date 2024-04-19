@@ -3852,7 +3852,12 @@ let constructor_extension
   let child = (child_ind_def, IndFamilyCtx.ctx child) in
   (* I should probably use a print statement here to see how
      constructors are "typed"  *)
-  child 
+  child
+
+   let record_defaults
+      (ctor_name: Names.Id.t)
+      (defaults : Constrexpr.constr_expr list) =
+      Feedback.msg_info (Pp.str @@ "Record default for " ^ (Names.Id.to_string ctor_name))
 
 end
 

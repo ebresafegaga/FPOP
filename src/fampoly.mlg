@@ -390,6 +390,9 @@ VERNAC COMMAND EXTEND FamilyPolyExtension CLASSIFIED AS SIDEFF
     (* post_generate_prec_and_rec2d_after_inductive_def fname *)
   }
 
+| [ "FDefault" ident(ctor_name) constr_list(defaults) ] -> 
+   { Familytype.Extensibility.record_defaults ctor_name defaults }
+
 | [ "Inherit" "Field" ident(fname) ]              -> {   assert_in_scope OpenedFamily; add_inherited_fields_until_and_including fname }
 | [ "Inherit" "Until" "Field" ident(fname) ]     -> {   assert_in_scope OpenedFamily; add_inherited_fields_until_not_including fname }
 
