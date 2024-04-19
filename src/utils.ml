@@ -6,7 +6,7 @@ type name = Names.Id.t
     thus assertions might be slow -- 
     turn if off if you find it too slow   
 *)
-let dbg_mode = Summary.ref ~name:"DbgMode" (false)
+let dbg_mode = Summary.ref ~name:"DbgMode" (true)
 
 
 let msg_notice t =
@@ -734,19 +734,17 @@ match expose with
 | Some e -> Some (Pins e) 
 
 
-type 'a stack = 'a list
-
 module CoqIndSigUtil = struct
 
 type coq_ind_sig = (Vernacexpr.inductive_expr * Vernacexpr.decl_notation list) list
 
-type coq_ind_sigs = coq_ind_sig stack
+type coq_ind_sigs = coq_ind_sig list
   
 (* Extract type information and 
     constructor information out of a inductive signature
 *)
-let extract_type_and_cstrs (s : Vernacexpr.inductive_expr) : ((name * (rawterm option)) * ((name * rawterm) list)) =
-  let (indtypename, ind_params, indtype, cstrlist) = s in 
+let extract_type_and_cstrs (inductive : Vernacexpr.inductive_expr) : ((name * (rawterm option)) * ((name * rawterm) list)) =
+  let (indtypename, ind_params, indtype, cstrlist) = inductive in 
   assert_cerror ~einfo:"Doesn't Support Inductive Parameter yet" (fun _ -> fst ind_params = [] && snd ind_params = None);
   let _, (indtypename, _) = indtypename in
   let indtypename = CAst.with_val (fun x -> x) indtypename in 
@@ -759,8 +757,8 @@ let extract_type_and_cstrs (s : Vernacexpr.inductive_expr) : ((name * (rawterm o
 let extract_all_ident (inddef : coq_ind_sigs) : name list = 
   (* TODO: deal with all the coqindsig later *)
   let inddef = List.hd inddef in 
-  let allnames = List.map (fun k -> extract_type_and_cstrs @@ fst k) inddef in 
-  let typenames = List.map (fun x -> fst (fst x)) allnames in 
+  let allnames = List.map (fun k -> k |> fst |> extract_type_and_cstrs) inddef in 
+  let typenames = List.map (fun x -> x |> fst |> fst) allnames in 
   let cstnames = List.map fst @@ List.concat_map snd allnames in 
   let allname = typenames @ cstnames in 
   allname

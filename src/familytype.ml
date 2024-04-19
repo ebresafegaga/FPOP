@@ -145,12 +145,12 @@ type family_type_or_coq_type =
   
 (*          {ty : coqtype; ctx : family_ctxtype} *)
 (* Corresponding to vR. {...}; this first name is self_name *)
-and family_type = fam_name * ((name * (family_type_or_coq_type)) list) 
+and family_type = fam_name * (name * family_type_or_coq_type) list 
 (* Each family has a list of field and their type *)
 
 
 (* We need to record the term and the type *)
-and family_ctxtype     = FamCtx of (name * family_type) list 
+and family_ctxtype = FamCtx of (name * family_type) list 
 
 (* Typed Term/Type is tracking the context where the term/type is well-typed
     make it intrinsic style
@@ -1610,7 +1610,7 @@ let collect_argument_and_ret_of_lambda (f : rawterm) : (((local_binder_expr_assu
   (* let isArrow {CAst.v = t; _} = match t with | CNotation (_, (_, "_ -> _"), _) -> true | _ -> false in *)
   let destLambda {CAst.v = t; _} = 
     match t with 
-    | CLambdaN (al, b) -> assert_cerror (fun _ ->List.length al = 1); (al, b)
+    | CLambdaN (al, b) -> (* assert_cerror (fun _ ->List.length al = 1);*) (al, b)
     | _ -> cerror () in 
   let give_name ({CAst.v = n; _} : Names.lname) : name =
     match n with 
@@ -1650,7 +1650,7 @@ let collect_argument_and_ret_of_lambda (f : rawterm) : (((local_binder_expr_assu
     let isArrow {CAst.v = t; _} = match t with | CNotation (_, (_, "_ -> _"), _) -> true | _ -> false in
     let destDepProd {CAst.v = t; _} = 
       match t with 
-      | CProdN (al, b) -> assert_cerror (fun _ ->List.length al = 1); (al, b)
+      | CProdN (al, b) -> (* assert_cerror (fun _ ->List.length al = 1);*) (al, b)
       | _ -> cerror () in 
     let destArrow {CAst.v = t; _} = 
       match t with 
@@ -2010,7 +2010,7 @@ let inductive_to_famterm_and_recursor_type (typed_indsigs : coq_ind_sigs typed) 
         (((a1, (a21,a22)), b, c,d), y)
       | _ -> cerror ~einfo:"Expect Constructors" () 
 
-    in 
+    in    
     let modified_indcstrs =  List.map each_apply_subst indsig in 
     (* 4. construct export mapping, for example, 
             tm : Set := __internal_tm *)
@@ -3758,9 +3758,105 @@ let inhextendind (i : inh) (fname : name) ((parentinddef, oldctx) : coq_ind_sigs
   ((newinp, newoup), ctx), newinhs
 
 
+(* A Coq inductive type decorated with an FPOP context *)
+module IndFamilyCtx = struct
+  type t = coq_ind_sig typed
+  let ind (x, _ : t) = x 
+  let ctx (_, x : t) = x
+end
 
 
-let check_compatible_indsig_for_newcstrs (parent_ind_trace, oldctx : coq_ind_sigs typed) ((newdef, current_ctx) : coq_ind_sig typed) : coq_ind_sig typed =     
+module Helpers = struct 
+  (** [extract_constructors ind] return all constructors in the given  
+    inductive type with their respective types *)
+ let extract_constructors 
+    : IndFamilyCtx.t -> (Names.Id.t * Constrexpr.constr_expr) list = 
+  fun inductive -> 
+    (* No mutual inductive type *)
+    let inductive = inductive |> IndFamilyCtx.ind |> List.hd in 
+    let (_, _, _, constructors) = inductive |> fst in 
+    match constructors with 
+    | Vernacexpr.Constructors constructors ->           
+       let each_constr ((_, (cname, cty)) : Vernacexpr.constructor_expr) : (name * rawterm) =
+         let cname = CAst.with_val (fun x -> x) cname in 
+         (cname , cty) 
+       in 
+       constructors |> List.map each_constr          
+    | _ -> cerror ~einfo:("Expect Inductive Constructor!"^__LOC__) ()
+end 
+
+(* A module with utils for performing constructor extensions *)
+module Extensibility = struct
+
+(* 
+   We want something like this to work: 
+
+   family A { 
+      Inductive n : Set := A : n
+   }
+
+  family B extends A {
+     Inductive n : Set := A : nat -> n
+  }
+*)
+(* Bascially we want to 
+  (1) check if there is a naming conflict in the consructors
+  (2) Check if the new constructor with the just adds a new field 
+  (3) Rename new constructor with a ' at the end to avoid conflict *)
+let constructor_extension 
+       : IndFamilyCtx.t -> IndFamilyCtx.t -> IndFamilyCtx.t = 
+   fun parent child ->    
+   
+  (* 1. We want to extract the name and type of the constructors 
+        in the parent family and in the child family *)
+  let parent_constructors = Helpers.extract_constructors parent in
+  let child_constructors = Helpers.extract_constructors parent in
+  (* 2. We want to filter constructors that are present in parent 
+        and child to an association list (e.g (B : nat -> t, B : t) *)
+  let extended_constructors_types = 
+    child_constructors 
+    |> List.filter_map (fun (name, ty) -> 
+       match parent_constructors |> List.assoc_opt name with 
+       | Some parent_ty -> Some (name, ty, parent_ty)
+       | None -> None )
+  in
+  let extended_constructors = 
+    extended_constructors_types 
+    |> List.map (fun (constructor_name, _ty, _parent_ty) -> constructor_name) 
+  in
+  let ((wtc, (type_name, univ_info)), params, ty, cstrs) = 
+    child 
+    |> IndFamilyCtx.ind
+    |> List.hd (* No Mutual Inductive types *)
+    |> fst (* Skip the notation list *)
+  in 
+  let cstrs = 
+    match cstrs with 
+    | Vernacexpr.Constructors constructors -> 
+       let each_constr ((x, (cname, cty))) =
+         let name = 
+           let name = CAst.with_val (fun x -> x) cname in 
+           match List.find_opt (fun x -> x = name) extended_constructors with 
+           | Some _ -> Nameops.add_suffix name "'"
+           | None -> name           
+         in
+        (x, (CAst.make name, cty))
+       in 
+       Vernacexpr.Constructors (List.map each_constr constructors)
+    | _ -> cerror ~einfo:("Expect Inductive Constructor!"^__LOC__) ()
+  in 
+  let child_ind = ((wtc, (type_name, univ_info)), params, ty, cstrs) in
+  let child_ind_def = ([(child_ind, [])]) in 
+  let child = (child_ind_def, IndFamilyCtx.ctx child) in
+  (* I should probably use a print statement here to see how
+     constructors are "typed"  *)
+  child 
+
+end
+
+let check_compatible_indsig_for_newcstrs 
+      (parent_ind_trace, oldctx : coq_ind_sigs typed) 
+      ((newdef, current_ctx) : coq_ind_sig typed) : coq_ind_sig typed =     
     (* first check any name confliction -- we can also directly let
           Coq check it for us *)
     let parent_ind =   List.hd parent_ind_trace in
@@ -3820,8 +3916,11 @@ let combine_indsig_for_newcstrs (parent_ind, oldctx : coq_ind_sig typed) ((newde
     let child_ind_def = ([(child_ind, [])]) in 
     (child_ind_def, current_ctx)
 
-let inhextendind_incrementally (current_inh : inh) (fname : name) ((parent_ind, oldctx) : coq_ind_sigs typed) (incre_ind_typed : coq_ind_sig typed) registered_prec : inh =   
-  
+let inhextendind_incrementally 
+      (current_inh : inh) 
+      (fname : name) 
+      ((parent_ind, oldctx) : coq_ind_sigs typed) 
+      (incre_ind_typed : coq_ind_sig typed) registered_prec : inh =
   let complete_def, current_ctx = check_compatible_indsig_for_newcstrs (parent_ind, oldctx) incre_ind_typed in
   let _ = inductive_to_famterm_and_recursor_type (complete_def :: parent_ind, current_ctx) in 
   let _ = inductive_to_famtype (complete_def :: parent_ind, current_ctx) in 

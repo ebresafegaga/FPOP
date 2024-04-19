@@ -656,7 +656,8 @@ let extend_ind_type (newdef : coq_ind_sig) : unit =
 
   let fname, parent_ind, oldctx,registered_prec = 
     match top_uninherited_field () with 
-    | Some (fname, ((CoqIndTy ({indsigs_from_org_ctx = parent_ind, ctx; registered_prec; _}), _))) -> fname, parent_ind, ctx ,registered_prec
+    | Some (fname, ((CoqIndTy ({indsigs_from_org_ctx = parent_ind, ctx; registered_prec; _}), _))) ->
+       fname, parent_ind, ctx ,registered_prec
     | _ -> cerror ~einfo:__LOC__ () in 
   (* let complete_def = check_compatible_indsig_for_newcstrs (parent_ind, oldctx) (newdef, current_ctx) in 
   (* TODO: weaken the parent_ind signature as well, because it is typed in the oldctx *)
