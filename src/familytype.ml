@@ -3804,9 +3804,8 @@ module Extensibility = struct
   (2) Check if the new constructor with the just adds a new field 
   (3) Rename new constructor with a ' at the end to avoid conflict *)
 let constructor_extension 
-       : IndFamilyCtx.t -> IndFamilyCtx.t -> IndFamilyCtx.t = 
-   fun parent child ->    
-   
+       : parent:IndFamilyCtx.t -> child:IndFamilyCtx.t -> IndFamilyCtx.t = 
+   fun ~parent ~child ->
   (* 1. We want to extract the name and type of the constructors 
         in the parent family and in the child family *)
   let parent_constructors = Helpers.extract_constructors parent in
@@ -3856,10 +3855,15 @@ end
 
 let check_compatible_indsig_for_newcstrs 
       (parent_ind_trace, oldctx : coq_ind_sigs typed) 
-      ((newdef, current_ctx) : coq_ind_sig typed) : coq_ind_sig typed =     
+      (child_ind : coq_ind_sig typed) : coq_ind_sig typed =     
     (* first check any name confliction -- we can also directly let
           Coq check it for us *)
     let parent_ind =   List.hd parent_ind_trace in
+    let (newdef, current_ctx) = 
+      Extensibility.constructor_extension 
+        ~parent:(parent_ind, oldctx) 
+        ~child:child_ind
+    in
     assert_cerror_forced ~einfo:__LOC__ (fun _ -> List.length parent_ind = 1);
     assert_cerror_forced ~einfo:__LOC__ (fun _ -> List.length newdef = 1);
     (* No mutual inductive type *)
