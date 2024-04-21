@@ -7,10 +7,16 @@ Open Scope string_scope.
 
 Module Test32.
 
+Family A.
+  FInductive t : Set := A : t | B : t.
 
+FEnd A.
 
+Family C extends A.
+   FInductive t : Set := A : nat -> t | C : t.
+   FDefault A 0.
 
-
+   
 Family K.
 
 FInductive b : Set 
