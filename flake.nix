@@ -14,7 +14,7 @@
         ocamlPkgs = coq_8_15.ocamlPackages;
         
         # Make sure Coq packages use our custom Coq 8.19, which is built with OCaml 5.1
-        coqPkgs = pkgs.coqPackages_8_15.overrideScope' (self: super: {
+        coqPkgs = pkgs.coqPackages_8_15.overrideScope (self: super: {
             coq = coq_8_15;
         });
 
@@ -29,10 +29,10 @@
           pkgs.emacsPackages.proof-general
 
           # For bench
-          pkg.coreutils
-          pkg.gnugrep
-          pkg.gawk
-          pkg.bc
+          pkgs.coreutils
+          pkgs.gnugrep
+          pkgs.gawk
+          pkgs.bc
         ];
       in
         {
