@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# set -x #echo on
-# 
-# time coqc STLC.v -R ../_build/default/theories Rocqet -I ../_build/default/src &> output1.txt
-# 
-# time coqc STLC_bool_sum_fix_prod_iso.v -R ../_build/default/theories Rocqet -I ../_build/default/src &> output1.txt
 
 # Create a CSV file with headers
 echo "filename,real_time_seconds" > benchmark_results.csv
@@ -19,7 +14,7 @@ for file in *.v; do
   time_output=$(mktemp)
   
   # Run the command and capture the time output
-  (time coqc "$file" -R ../_build/default/theories Rocqet -I ../_build/default/src &> "output_${file%.v}.txt") 2> "$time_output"
+  (time coqc "$file" -R ../_build/default/theories Fampoly -I ../_build/default/src &> "output_${file%.v}.txt") 2> "$time_output"
   
   # Extract the real time in seconds
   real_time=$(grep "real" "$time_output" | awk '{print $2}')
