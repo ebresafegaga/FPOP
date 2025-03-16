@@ -962,3 +962,5 @@ Qed. FEnd preservation.
 
 Time FEnd STLC_sum.
 
+Family STLC_prod_sum extends STLC
+   using STLC_prod using STLC_sum.                     

@@ -794,3 +794,7 @@ forwards*: self__STLC_isorec.step_tm_unfold_inv; destruct_ALL; subst; eauto usin
 Qed. FEnd preservation.
 
 FEnd STLC_isorec.
+
+
+Family STLC_fix_iso extends STLC
+   using STLC_fix using STLC_isorec. 

@@ -1317,3 +1317,39 @@ forwards*: self__STLC_isorec.step_tm_unfold_inv; destruct_ALL; subst; eauto usin
 Qed. FEnd preservation.
 
 FEnd STLC_isorec.
+
+Family STLC_sum_fix extends STLC
+  using STLC_sum using STLC_fix.
+
+Family STLC_sum_fix_prod extends STLC
+  using STLC_sum_fix using STLC_prod.
+
+Family STLC_sum_fix_prod_iso extends STLC
+  using STLC_sum_fix_prod using STLC_isorec Begin.                               
+
+
+Inherit Until Field substT_internal.
+
+Family substT_internal.
+
+Inherit Field motive.
+
+Field ty_prod : 
+  forall (s1 : self__STLC_sum_fix_prod_iso.ty) (recs1 : self__substT_internal.motive s1) 
+         (s2 : self__STLC_sum_fix_prod_iso.ty) (recs2 : self__substT_internal.motive s2) , 
+  forall (x : ident) (t : self__STLC_sum_fix_prod_iso.ty),
+  self__STLC_sum_fix_prod_iso.ty :=
+  fun _ recs1 _ recs2 x t => self__STLC_sum_fix_prod_iso.ty_prod (recs1 x t) (recs2 x t).
+
+Field ty_sum : 
+  forall (s1 : self__STLC_sum_fix_prod_iso.ty) (recs1 : self__substT_internal.motive s1) 
+         (s2 : self__STLC_sum_fix_prod_iso.ty) (recs2 : self__substT_internal.motive s2) , 
+  forall (x : ident) (t : self__STLC_sum_fix_prod_iso.ty),
+  self__STLC_sum_fix_prod_iso.ty :=
+  fun _ recs1 _ recs2 x t => self__STLC_sum_fix_prod_iso.ty_sum (recs1 x t) (recs2 x t).
+
+FEnd substT_internal.
+
+Inherit Field substT.
+
+FEnd STLC_sum_fix_prod_iso.

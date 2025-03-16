@@ -840,3 +840,6 @@ eauto using self__STLC_fix.ht_fix.
 Qed. FEnd preservation.
 
 FEnd STLC_fix.
+
+Family STLC_sum_fix extends STLC
+  using STLC_sum using STLC_fix.

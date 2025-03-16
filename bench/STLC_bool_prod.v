@@ -886,3 +886,6 @@ forwards*: (h3 eq_refl); eauto using self__STLC_prod.ht_prod.
 Qed. FEnd preservation.
 
 Time FEnd STLC_prod.
+
+Family STLC_bool_prod_fix extends STLC 
+    using STLC_bool using STLC_prod.

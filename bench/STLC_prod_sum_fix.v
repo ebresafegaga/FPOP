@@ -1103,3 +1103,10 @@ eauto using self__STLC_fix.ht_fix.
 Qed. FEnd preservation.
 
 FEnd STLC_fix.
+
+
+Family STLC_prod_sum extends STLC
+  using STLC_prod using STLC_sum.
+
+Family STLC_prod_sum_fix extends STLC
+  using STLC_prod_sum using STLC_fix.                          

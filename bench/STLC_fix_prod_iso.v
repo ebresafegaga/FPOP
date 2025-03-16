@@ -1057,3 +1057,29 @@ forwards*: (h3 eq_refl); eauto using self__STLC_prod.ht_prod.
 Qed. FEnd preservation.
 
 Time FEnd STLC_prod.
+
+
+Family STLC_fix_prod extends STLC
+   using STLC_fix using STLC_prod.                      
+
+Family STLC_fix_prod_iso extends STLC
+  using STLC_fix_prod using STLC_isorec Begin.                       
+
+Inherit Until Field substT_internal.
+
+Family substT_internal.
+
+Inherit Field motive.
+
+Field ty_prod : 
+  forall (s1 : self__STLC_fix_prod_iso.ty) (recs1 : self__substT_internal.motive s1) 
+         (s2 : self__STLC_fix_prod_iso.ty) (recs2 : self__substT_internal.motive s2) , 
+  forall (x : ident) (t : self__STLC_fix_prod_iso.ty),
+  self__STLC_fix_prod_iso.ty :=
+  fun _ recs1 _ recs2 x t => self__STLC_fix_prod_iso.ty_prod (recs1 x t) (recs2 x t).
+
+FEnd substT_internal.
+
+Inherit Field substT.
+
+FEnd STLC_fix_prod_iso.

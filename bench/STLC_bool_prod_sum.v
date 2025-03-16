@@ -1146,3 +1146,10 @@ eapply self__STLC_sum.subst_lemma; eauto. intros. forwards*: self__STLC_sum.ht_i
 Qed. FEnd preservation.
 
 Time FEnd STLC_sum.
+
+
+Family STLC_bool_prod extends STLC
+   using STLC_bool using STLC_prod.                  
+
+Family STLC_bool_prod_sum extends STLC
+   using STLC_bool_prod using STLC_sum.

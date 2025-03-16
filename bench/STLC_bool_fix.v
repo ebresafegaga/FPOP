@@ -623,3 +623,148 @@ StartFProofAll. repeat split; (repeat intro; intros); cbn in *; eauto; subst; ea
 Qed. FEnd preservation.
 
 FEnd STLC_bool.
+
+Family STLC_fix extends STLC.
+
+
+(* Inherit Until Field tm. *)
+FInductive tm : Set :=
+  | tm_fix : ident -> tm  -> tm.
+
+
+
+(* Inherit Until Field subst_handler. *)
+
+FRecursion subst.
+
+Case tm_fix
+  := (fun s body rec_body => 
+    fun x t => 
+    if (eqb x s) 
+    then (self__STLC_fix.tm_fix s body)
+    else (self__STLC_fix.tm_fix s (rec_body x t))).
+
+FEnd subst.
+
+
+
+
+(* Inherit Field context. *)
+
+FInductive step : self__STLC_fix.tm -> self__STLC_fix.tm -> Prop :=
+  | st_fix : forall i body, 
+    step (self__STLC_fix.tm_fix i body) (self__STLC_fix.subst body i (self__STLC_fix.tm_fix i body)).
+
+
+FInductive has_type : (partial_map self__STLC_fix.ty) -> self__STLC_fix.tm -> self__STLC_fix.ty -> Prop :=
+  | ht_fix : forall G x body T,
+  has_type (x |-> T; G) body T ->
+  has_type G (self__STLC_fix.tm_fix x body) T.
+
+
+
+(* Closing Fact value_fix_type_inv:
+  forall t i T,
+  self__STLC_fix.value t ->
+  self__STLC_fix.has_type empty t (self__STLC_fix.ty_fix i T) ->
+  (exists t', t = self__STLC_fix.tm_fold t' /\ self__STLC_fix.value t')
+by {
+  intros t i T h h1;
+  inversion h; subst; eauto; inversion h1; subst; eauto}.*)
+
+FInduction progress. 
+StartFProofAll. 
+repeat split; (repeat intro;intros); subst; eauto.
+
+try (right; eauto using self__STLC_fix.st_fix;fail).
+Qed. FEnd progress. 
+
+
+
+FInduction subst_lemma.
+StartFProofAll. repeat split; (repeat intro;intros); subst; frec_eval self__STLC_fix.subst; eauto using self__STLC_fix.ht_fix.  
+unfold self__STLC_fix.subst_handler.tm_fix.
+destruct (PeanoNat.Nat.eq_dec x0 x); subst; eauto;try rewrite PeanoNat.Nat.eqb_refl; cbn in *; subst; eauto.
++ eapply self__STLC_fix.ht_fix; eauto. erewrite <- update_shadow; eauto.
++   assert ((x0 =? x) = false) as H0. eapply PeanoNat.Nat.eqb_neq; eauto.
+  rewrite H0 in *. eapply self__STLC_fix.ht_fix; eauto.
+  eapply H; subst; eauto. eapply update_permute; eauto. 
+
+Qed. FEnd subst_lemma.  
+
+FInductive fv  : ident -> self__STLC_fix.tm -> Prop :=
+| fv_fix :  forall x v body,
+fv x body -> x <> v -> fv x (self__STLC_fix.tm_fix v body).
+
+
+Closing Fact fv_inv_tm_fix:
+forall x v body,
+fv x (tm_fix v body) ->
+fv x body /\ x <> v
+by {intros x v body h; repeat split; inversion h; subst; eauto}.
+
+
+
+
+FInduction free_var_in_ctx.
+StartFProofAll. repeat split;
+(repeat intro;intros); cbn in *; eauto; subst; eauto;
+eauto using self__STLC_fix.fv_inv_tm_fix. 
+destruct (self__STLC_fix.fv_inv_tm_fix _ _ _ H0); eauto.
+forwards: (H x0); destruct_ALL; eauto. unfold update in H3.
+assert ((x =? x0) = false) as HH. eapply PeanoNat.Nat.eqb_neq; eauto.
+rewrite HH in *; eauto.
+
+Qed. FEnd free_var_in_ctx.
+
+
+
+FInduction free_var_matters.
+StartFProofAll.
+repeat split; (repeat intro;intros); cbn in *; eauto; subst; eauto.
+eapply  self__STLC_fix.ht_fix; eauto. unfold update in *. eapply H; eauto. intros.
+destruct (Nat.eq_dec x x0);subst; simpl; eauto; try discriminate; try contradiction. 
+rewrite Nat.eqb_refl; eauto.
+assert ((x =? x0) = false) as HH. eapply PeanoNat.Nat.eqb_neq; eauto.
+rewrite HH in *; eauto. eapply H0; eauto using  self__STLC_fix.fv_fix.
+
+Qed. FEnd free_var_matters.
+
+
+
+
+Closing Fact step_tm_fix_inv:
+  forall i body y,
+  step (tm_fix i body) y ->
+    (y = subst body i (tm_fix i body))
+by { intros i body y h; inversion h; subst; eauto }. 
+
+
+(* Closing Fact step_tm_unfold_inv:
+  forall x y,
+  self__STLC_fix.step (self__STLC_fix.tm_unfold x) y ->
+    (exists x', y = self__STLC_fix.tm_unfold x' /\ self__STLC_fix.step x x') \/ 
+    (exists v, x = self__STLC_fix.tm_fold v /\ self__STLC_fix.value v /\ y = v)
+by { intros x y h; inversion h; subst; eauto }. *)
+
+Closing Fact ht_fix_inv:
+forall G i body T,
+has_type G (tm_fix i body) T ->
+has_type (i |-> T ; G) body T
+by {intros G i body T h; inversion h; subst; eauto}.
+
+FInduction preservation.
+StartFProofAll.
+repeat split; (repeat intro;intros); cbn in *; eauto; subst; eauto.
+forwards*: self__STLC_fix.step_tm_fix_inv; destruct_ALL; subst.
+eapply self__STLC_fix.subst_lemma; intros; eauto.
+eapply self__STLC_fix.weakening_lemma; intros; eauto.
+
+eauto using self__STLC_fix.ht_fix.
+
+Qed. FEnd preservation.
+
+FEnd STLC_fix.
+
+Family STLC_bool_fix extends STLC 
+    using STLC_bool using STLC_fix.
